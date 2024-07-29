@@ -67,3 +67,40 @@ df = table.to_pandas()
 # Display information about the shape and the first few rows of the DataFrame
 print(df.shape)
 print(df.head())
+
+
+
+# import pandas as pd
+# import pyarrow as pa
+# import pyarrow.parquet as pq
+
+# # Convert the matrices to strings with commas
+# H_str = np.array2string(H, separator=',')
+# W_str = np.array2string(W, separator=',')
+# t_str= np.array2string(t, separator=',')
+# u_str= np.array2string(u, separator=',')
+
+
+# import pickle
+# import pandas as pd
+# # Convertir les matrices en chaînes de caractères avec des virgules
+# H_str = np.array2string(H, separator=',')
+# W_str = np.array2string(W, separator=',')
+
+# # Initialize an empty DataFrame
+# df1 = pd.DataFrame(columns=['H', 'label'])
+
+# # Ajouter les matrices converties au DataFrame
+# df1 = df1._append({'H': H_str, 'label': W_str}, ignore_index=True)
+
+# # Sauvegarder le DataFrame dans un fichier pickle
+# with open('data1.pkl', 'wb') as f:
+#     pickle.dump(df1, f)
+
+# # Charger le DataFrame à partir du fichier pickle
+# with open('data1.pkl', 'rb') as f:
+#     df = pickle.load(f)
+
+# # Afficher les informations sur la forme et les premières lignes du DataFrame
+# print(df.shape)
+# print(df.head())

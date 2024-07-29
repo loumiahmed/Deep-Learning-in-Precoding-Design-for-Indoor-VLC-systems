@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.linalg import kron, norm
 from R_func import R_func
 from cvx_func_bisection import cvx_func_bisection, cvx_func_bisection_2
+import time
 
 # Implementation of the main code
 K = 4 # number of UE
@@ -65,14 +66,13 @@ for i in range(M): #Starts a loop over the transmitters.
         if theta <= theta_c_k:
             H[i, j] = rho_k * A_k / d1 ** 2 * R_func(phi, m) * np.cos(theta)
 
-# Initialize rate vectors
-rate_ZF = np.zeros((len(Pn),1))
-rate_OLP = np.zeros((len(Pn),1))
 
 # Initialize rate vectors
 rate_ZF = np.zeros(len(Pn))
-# rate_ZF_test = np.zeros(len(Pn))
 rate_OLP = np.zeros(len(Pn))
+
+# Measure optimization time
+start_time = time.time()
 
 for n in range(len(Pn)):
     p = Pn[n] * np.ones(M)
@@ -135,53 +135,55 @@ for n in range(len(Pn)):
         Sum = np.dot(W_k, W_k.T)
         SINR1[k] = (np.dot(h_k.T, W[:, k]) * np.dot(W[:, k].T, h_k)) / (np.dot(h_k.T, np.dot(Sum, h_k)) + sigma[k])
 
-    rate_OLP[n] = (1 / K) * np.sum(B * np.log2(1 + SINR1))
+    rate_OLP[n] = 10*(1 / K) * np.sum(B * np.log2(1 + SINR1))
+
+end_time = time.time()
+optimization_time = end_time - start_time
+print(f"Optimization Time: {optimization_time} seconds")
 
 
-print (H)
-print(W)
-# Plot results
-plt.figure()
-plt.semilogy(P_n_dB, rate_ZF, 'brown', label='Zero Forcing 1')
-# plt.semilogy(P_n_dB, rate_ZF_test, 'b', label='Zero Forcing 2')
-plt.semilogy(P_n_dB, rate_OLP, 'green', label='OLP')
-plt.xlabel('Pn [dBm]')
-plt.ylabel('rate [bits/sec]')
-plt.grid(True)
-plt.legend()
-# plt.xlim(15, 30)
-# plt.ylim(0, 1e9)
-plt.show()
+# file_path = 'time_measurements.txt'
+# with open(file_path, 'r') as file:
+#     lines = file.readlines()
+# lines.append(f"Optimization Time: {optimization_time} seconds\n")
 
-import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
+# # Write the updated content back to the file
+# with open(file_path, 'w') as file:
+#     file.writelines(lines)
 
-# Convert the matrices to strings with commas
-H_str = np.array2string(H, separator=',')
-W_str = np.array2string(W, separator=',')
-t_str= np.array2string(t, separator=',')
-u_str= np.array2string(u, separator=',')
+# print(f"Optimization Time: {optimization_time} seconds")
+
+# # Plot results
+# plt.figure()
+# plt.semilogy(P_n_dB, rate_ZF, 'brown', label='ZF')
+# # plt.semilogy(P_n_dB, rate_ZF_test, 'b', label='Zero Forcing 2')
+# plt.semilogy(P_n_dB, rate_OLP, 'green', label='OLP')
+# plt.xlabel('Pn [dBm]')
+# plt.ylabel('rate [bits/sec]')
+# plt.grid(True)
+# plt.legend()
+# # plt.xlim(15, 30)
+# # plt.ylim(0, 1e9)
+# plt.show()
+# Creatre pickle file to store the data
 
 
+# Create Pickle file to store the dataset
 import pickle
 import pandas as pd
-# Convertir les matrices en chaînes de caractères avec des virgules
-H_str = np.array2string(H, separator=',')
-W_str = np.array2string(W, separator=',')
 
 # Initialize an empty DataFrame
 df1 = pd.DataFrame(columns=['H', 'label'])
 
 # Ajouter les matrices converties au DataFrame
-df1 = df1._append({'H': H_str, 'label': W_str}, ignore_index=True)
+df1 = df1._append({'H': H, 'label': W}, ignore_index=True)
 
 # Sauvegarder le DataFrame dans un fichier pickle
-with open('data1.pkl', 'wb') as f:
+with open('dataset.pkl', 'wb') as f:
     pickle.dump(df1, f)
 
 # Charger le DataFrame à partir du fichier pickle
-with open('data1.pkl', 'rb') as f:
+with open('dataset.pkl', 'rb') as f:
     df = pickle.load(f)
 
 # Afficher les informations sur la forme et les premières lignes du DataFrame

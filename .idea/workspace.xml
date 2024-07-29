@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="c16ee8df-3dd1-405e-9b6c-5fe59e039211" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/VLC.parquet" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ZF_OLP_implementation.py" beforeDir="false" afterPath="$PROJECT_DIR$/ZF_OLP_implementation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data1.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/data1.pkl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data_extraction.py" beforeDir="false" afterPath="$PROJECT_DIR$/data_extraction.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data_preparation.py" beforeDir="false" afterPath="$PROJECT_DIR$/data_preparation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data_process.py" beforeDir="false" afterPath="$PROJECT_DIR$/data_process.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model_eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/model_eval.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/my_model.h5" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/offline_training.py" beforeDir="false" afterPath="$PROJECT_DIR$/offline_training.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="2j3g27dnqiSyYqhNnxi233fcsrt" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="c16ee8df-3dd1-405e-9b6c-5fe59e039211" name="Changes" comment="" />
+      <created>1720620968516</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1720620968516</updated>
+      <workItem from="1720620971444" duration="32000" />
+    </task>
+    <servers />
+  </component>
+</project>

@@ -5,142 +5,152 @@ import ast
 import pickle
 import pyarrow.parquet as pq
 
+import time
 
 from sklearn.preprocessing import StandardScaler
 from ast import literal_eval  # Import literal_eval to safely evaluate string literals
 from sklearn.model_selection import train_test_split
 
 import tensorflow as tf
-from tensorflow.keras.callbacks import EarlyStopping 
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.layers import Input, Conv1D, Flatten, Dense
 from tensorflow.keras.models import Model
 
-from data_preparation import process_matrices
-from data_process import split_data
+from data_preparation import process_matrices, roundlist 
+from data_process import split_data, divide_data
 from model_eval import calculate_mse, calculate_mae, calculate_rmse, calculate_r2, get_final_losses, plot_loss
+import cvxpy as cp
+from scipy.linalg import kron, norm
+from R_func import R_func
+from cvx_func_bisection import cvx_func_bisection, cvx_func_bisection_2
 
-df1 = pd.read_parquet('data.parquet')
+np.random.seed(42)
 
-with open('data1.pkl', 'rb') as f:
-    df2 = pickle.load(f)
+with open('dataset.pkl', 'rb') as f:
+    df = pickle.load(f)
 
-
-df = pd.concat([df1, df2], ignore_index=True)
-
-# Write the merged DataFrame to a new Parquet file
-df.to_parquet('VLC.parquet')
-df = pd.read_parquet('VLC.parquet')
-
-# Process 'H' column
-flattened_matrices_H, normalized_matrices_H = process_matrices(df, 'H')
-# Process 'label/W' column
-flattened_matrices_W, normalized_matrices_W = process_matrices(df, 'label')
-
+# Process 'H : channel matrix' column
+flattened_matrices_H = process_matrices(df, 'H')
+# Process 'W : precoding matrix' column
+flattened_matrices_W= process_matrices(df, 'label')
 
 # Create a new DataFrame of processed data 
 df3 = pd.DataFrame({
     'H' : df['H'],
-    'H_f': flattened_matrices_H,
-    # 'H_N' : normalized_matrices_H,
-    'label' : df['label'],
-    'label_f': flattened_matrices_W ,
-    # 'label_N' : normalized_matrices_W
+    'H_vector': flattened_matrices_H,
+    'W' : df['label'],
+    'W_vector': flattened_matrices_W ,
 })
 
-# # Apply the function to all rows in the 'H_N' column and create a new column 'H_f'
-# df3['H_s'] = df1['H_N'].apply(string_operation)
-# df3['label_s']=df1['label_N'].apply(string_operation)
+
+# X_train, X_train_scaled, X_train_reshaped, X_test, X_test_scaled, X_test_reshaped, y_train, y_train_scaled, y_test, y_test_scaled= split_data(df3, 'H_vector', 'W_vector', test_size=0.1)
+X_train, X_train_scaled, X_train_reshaped, X_valid, X_valid_scaled, X_valid_reshaped, \
+X_test, X_test_scaled, X_test_reshaped, y_train, y_train_scaled, y_valid, y_valid_scaled, y_test, y_test_scaled = \
+    divide_data(df3, 'H_vector', 'W_vector', test_size=0.2, valid_size=0.2, random_state=42, shuffle=True)
 
 
-X_train_reshaped, X_test_reshaped,x_test_scaled, y_train, y_train_scaled, y_test, y_test_scaled = split_data(df3, 'H_f', 'label_f')
+# Define callbacks
+model_path = "best_model.weights.h5"
+checkpointer = ModelCheckpoint(model_path, verbose=1, save_best_only=True, save_weights_only=True)
+early_stopping = EarlyStopping(monitor='val_loss', min_delta=1e-5, patience=25)
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, min_delta=1e-5, min_lr=1e-5)
+epochs=100
+# Define a fixed learning rate
+lr_schedule = 0.001
 
-# Build the model
-model = tf.keras.Sequential([
-    tf.keras.layers.Conv1D(32, kernel_size=3, activation='relu', input_shape=(X_train_reshaped.shape[1], X_train_reshaped.shape[2])),
-    tf.keras.layers.Conv1D(64, kernel_size=3, activation='relu'),
-    tf.keras.layers.Conv1D(128, kernel_size=3, activation='relu'),
-    tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(128, activation='relu'),
-    tf.keras.layers.Dense(64, activation='relu'),
-    tf.keras.layers.Dense(24, activation='linear')
-])
+# Parameters = (Kernel Size * Number of Channels + Bias) * Number of Filters 
+# Parameters = (Input Size + Bias) * Number of Neurons
 
-# Train the model
-model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae', 'mse'])
+######## APPLICATION OF 1DCNN ##################
+# Define an optimizer with the learning rate schedule
+optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
 
-# Define early stopping callback
-early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1)
+def CNN_model (input_shape=(X_train_reshaped.shape[1], X_train_reshaped.shape[2]), output_shape=24) :
+    # Build the model
+    model = tf.keras.Sequential([
+        tf.keras.layers.Conv1D(32, kernel_size=3, activation='relu', input_shape=input_shape),
+        tf.keras.layers.Conv1D(64, kernel_size=3, activation='relu'),
+        tf.keras.layers.Conv1D(128, kernel_size=3, activation='relu'),
+        tf.keras.layers.Conv1D(256, kernel_size=3, activation='relu'),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dense(output_shape)
+    ])
 
-# Train the model with early stopping
-history = model.fit(X_train_reshaped, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping])
+    # Compile the model with the optimizer
+    model.compile(optimizer=optimizer, loss='mean_squared_error')
+    model.summary()
+    return model
 
-# Make predictions
-predictions = model.predict(x_test_scaled)
+model1= CNN_model()
 
-# evaluate model
-mse = calculate_mse(y_test, predictions)
-mae = calculate_mae(y_test, predictions)
-rmse = calculate_rmse(y_test, predictions)
-r2 = calculate_r2(y_test, predictions)
-print("Mean Squared Error (MSE) on Test Set:", mse)
-print("Mean Absolute Error (MAE) on Test Set:", mae)
-print("Root Mean Squared Error (RMSE) on Test Set:", rmse)
-print("R-squared (R2) on Test Set:", r2)
+# # Measure training time
+# start_time = time.time()
+# # Train the model with callbacks
+# history1 = model1.fit(X_train_reshaped, y_train, epochs=epochs, batch_size=32, validation_split=0.2,
+#                     callbacks=[checkpointer, reduce_lr, early_stopping])
+# end_time = time.time()
+# training_time = end_time - start_time
+# print(f"Training Time: {training_time} seconds")
 
-final_train_loss, final_val_loss = get_final_losses(history)
+
+# Measure training time
+start_time = time.time()
+
+# Train the model with callbacks
+history1 = model1.fit(
+    X_train_reshaped, y_train, 
+    epochs=epochs, 
+    batch_size=32, 
+    validation_data=(X_valid_reshaped, y_valid),
+    callbacks=[checkpointer, reduce_lr, early_stopping]
+)
+
+end_time = time.time()
+training_time = end_time - start_time
+
+print(f"Training Time: {training_time} seconds")
+
+
+# Measure prediction time
+start_time = time.time()
+prediction = model1.predict(X_test_reshaped)
+end_time = time.time()
+prediction_time = end_time - start_time
+print(f"Prediction Time: {prediction_time} seconds")
+
+
+print(prediction[0])
+print("------------------------------------")
+print(y_test[0])
+
+
+r2=calculate_r2(y_test, prediction)
+print('R2 :', r2)
+
+# Plotting both sets of loss values in the same figure with different colors
+plt.plot(history1.history['loss'], label='Train loss 1D CNN', color='blue')
+plt.plot(history1.history['val_loss'], label='Validation loss 1D CNN', color='orange')
+
+
+# Adding title, labels, and legend
+# plt.title('Model loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(loc='upper left')
+
+# Display the plot
+plt.show()
+
+
+# plot results
+final_train_loss, final_val_loss = get_final_losses(history1)
 print("Final Training Loss:", final_train_loss)
 print("Final Validation Loss:", final_val_loss)
+plot_loss(history1)
 
-plot_loss(history)
-
-
-# Implementation of the main code
-K = 4 # number of UE
-M = 6  # number of transmitter
-P_n_dB = np.arange(15, 31, 1)  # Power values in dBm
-Pn = 10 ** ((P_n_dB - 30) / 10)  # Power values in linear scale
-theta_c_k = 60 * (np.pi/180)  # Receiver field of view in radians (60 deg -> rad)
-q = 1.5  # Refractive index of optical concentrator
-B = 1e8 # Bandwidth in Hz
-BER = 1e-3  # Bit Error Rate
-ee = 1.60217662e-19  # Elementary charge
-A_PDk = 1e-4  # Photo Detector area
-xi = 10.93  # Ambient light photocurrent
-rho_k = 0.4  # Photo Detector responsivity
-i_amp = 5e-12  # Preamplifier noise density
-m = 1  # mode number of Lambertian emission
-A_k = q ** 2 * A_PDk / (np.sin(theta_c_k)) ** 2  # Collection area
-
-
-def rate_per_user (H,W):
-    
-    for n in range(len(Pn)):
-        p = Pn[n] * np.ones(M)
-        Ps = Pn[n] * np.sum(H, axis=0) #Calculates the total power received at each user by multiplying the transmitted power Pn(n) with the channel matrix H and summing over all transmitters.
-        sigma = np.zeros(K) #%Initializes a vector sigma to store noise power values for each user.
-        for i in range(K): #Starts a loop over the users.
-            sigma[i] = 2 * ee * Ps[i] * B + 2 * ee * rho_k * xi * A_k * 2 * np.pi * (1 - np.cos(theta_c_k)) * B + i_amp ** 2 * B   
-    
-    rate_OLP = np.zeros((len(Pn),1))
-    SINR1 = np.zeros((K, 1))
-
-    for k in range(K):
-        h_k = H[:, k]
-        W_k = np.delete(W, k, axis=1)
-        Sum = np.dot(W_k, W_k.T)
-        SINR1[k] = (np.dot(h_k.T, W[:, k]) * np.dot(W[:, k].T, h_k)) / (np.dot(h_k.T, np.dot(Sum, h_k)) + sigma[k])
-    
-    rate_OLP[n] = (1 / K) * np.sum(B * np.log2(1 + SINR1))
-    
-    return rate_OLP
-
-r=rate_per_user(df['H'][0],predictions)
-
-# Plot results
-plt.figure()
-plt.semilogy(P_n_dB, r, 'green', label='OLP')
-plt.xlabel('Pn [dBm]')
-plt.ylabel('rate [bits/sec]')
-plt.grid(True)
-plt.legend()
-plt.show()
+# # Save the entire model
+# model1.save("vlcmodel.h5")
+# print("Model saved")
